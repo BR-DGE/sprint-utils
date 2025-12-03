@@ -86,7 +86,7 @@ waterloo = Team(
 glenfinnan = Team(
 	name="Glenfinnan",
     jira_key="GLEN",
-    points_per_epic=9,
+    points_per_epic=6,
 	manager="Kenny Scott",
     team_members=[
         {"name": "John Pooley"},
@@ -95,11 +95,11 @@ glenfinnan = Team(
         {"name": "Kevin Donnelly"},
         {"name": "Wesley Acheson", "leave_date": "2025-12-07"},
         {"name": "Kevin Kossipos"},
-        {"name": "Andrew Allan", "start_date": "2025-11-24"},
+        {"name": "Andrew Allan"},
     ],
     people_of_interest=["Kenny Scott, Alan Sambells", "Andy Paton", "Matt Smith"],
-    point_capacity=1,
-    load_factor=1,
+    point_capacity=0.8,
+    load_factor=0.8,
     engineering_split=0.3,
     absences_canvas="F09UP3P0C2F",
     capacity_canvas="F09UE2CAFGX",
