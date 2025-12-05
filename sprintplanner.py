@@ -189,15 +189,15 @@ def get_employee_id_list_from_tree(tree, team):
     core_display_names = []
     poi_employee_ids = []
     poi_display_names = []
-    member_names = [m.name for m in team.team_members]
+    member_bamboo_names = [m.bamboo_name for m in team.team_members]
     for employee in tree.employees.employee:
         employee_id = employee.attrib["id"]
         display_name = employee.find(".//field[@id='displayName']")
         # Exclude manager and people_of_interest from core team
-        if display_name == team.manager or display_name in team.people_of_interest:
+        if display_name == team.manager or display_name in team.poi_bamboo_names:
             poi_employee_ids.append(employee_id)
             poi_display_names.append(display_name)
-        if display_name in member_names:
+        if display_name in member_bamboo_names:
             core_employee_ids.append(employee_id)
             core_display_names.append(display_name)
     return core_employee_ids, core_display_names, poi_employee_ids, poi_display_names
@@ -213,7 +213,7 @@ def get_team_availability(sprint_start_date, sprint_end_date, l1_dict, l2_dict, 
         sprint_end_date: End date of the sprint
         l1_dict: Dictionary of L1 on-call assignments
         l2_dict: Dictionary of L2 on-call assignments
-        holidays_dict: Dictionary mapping names to sets of holiday dates
+        holidays_dict: Dictionary mapping bamboo_names to sets of holiday dates
         team: Team object with member details and capacity settings
         
     Returns:
@@ -229,12 +229,13 @@ def get_team_availability(sprint_start_date, sprint_end_date, l1_dict, l2_dict, 
     social_penalty = 1 if socials_in_sprint else 0
     for member in team.team_members:
         name_str = member.name
+        bamboo_name = member.bamboo_name
         pd_name = getattr(member, "pagerduty_name", name_str)
         start_date = getattr(member, "start_date", None)
         base_pct = getattr(member, "start_pct", 1)
         leave_date = getattr(member, "leave_date", None)
         days_in_sprint = 10
-        holidays = holidays_dict.get(name_str, set())
+        holidays = holidays_dict.get(bamboo_name, set())
         l1_days = len(l1_dict.get(pd_name, []))
         l2_days = len(l2_dict.get(pd_name, []))
         actual_available = days_in_sprint - len(holidays) - l1_days - social_penalty
@@ -356,6 +357,14 @@ def get_sprint_data(team):
     print(tree)
     core_employee_ids, core_display_names, poi_employee_ids, poi_display_names = get_employee_id_list_from_tree(tree, team)
     get_future_sprint_fte()
+    # Build mapping from bamboo_name to display name for team members
+    member_bamboo_to_display = {}
+    for member in team.team_members:
+        member_bamboo_to_display[member.bamboo_name] = member.name
+    # Build mapping from bamboo_name to display name for POI
+    poi_bamboo_to_display = {}
+    for bamboo_name, display_name in zip(team.poi_bamboo_names, team.people_of_interest):
+        poi_bamboo_to_display[bamboo_name] = display_name
     pd_names = [getattr(m, "pagerduty_name", m.name) for m in team.team_members]
     pagerduty_id_list = get_pagerduty_user_ids(pd_names)
     end_date = next_sprint + timedelta(days=(number_of_sprints*14))
@@ -378,25 +387,27 @@ def get_sprint_data(team):
         holidays_dict = {}
         holiday_rows = []
         for emp in employee_days:
-            name = str(emp)
-            holidays_dict[name] = set()
+            bamboo_name = str(emp)
+            display_name = member_bamboo_to_display.get(bamboo_name, bamboo_name)
+            holidays_dict[bamboo_name] = set()
             for absence in employee_days[emp]:
                 start_hol = datetime.strptime(str(absence[0]), date_format).date()
                 end_hol = datetime.strptime(str(absence[1]), date_format).date()
                 for n in range((end_hol - start_hol).days + 1):
                     hol_date = start_hol + timedelta(days=n)
                     if hol_date.weekday() < 5 and current_start.date() <= hol_date <= current_end.date():
-                        holidays_dict[name].add(hol_date)
+                        holidays_dict[bamboo_name].add(hol_date)
             total_days = sum(absence[3] for absence in employee_days[emp])
-            holiday_rows.append([name, total_days, str(employee_days[emp])])
+            holiday_rows.append([display_name, total_days, str(employee_days[emp])])
         # Manager/POI holidays for this sprint
         poi_holiday_rows = []
         for emp in poi_days:
-            name = str(emp)
+            bamboo_name = str(emp)
+            display_name = poi_bamboo_to_display.get(bamboo_name, bamboo_name)
             absences = poi_days[emp]
             if absences:
                 total_days = sum(a[3] for a in absences)
-                poi_holiday_rows.append([name, total_days, str(absences)])
+                poi_holiday_rows.append([display_name, total_days, str(absences)])
         # On-call
         # Ensure date range comparison is inclusive and robust
         sprint_start_str = current_start.strftime(date_format)

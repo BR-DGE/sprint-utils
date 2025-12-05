@@ -1,0 +1,19 @@
+name: Platform
+jira_key: PL
+points_per_epic: 9
+manager: Stuart Radley
+point_capacity: 0.8
+load_factor: 0.9
+engineering_split: 0.3
+absences_canvas: "#platform-canvas"
+capacity_canvas: Platform Sprint Canvas
+support_canvas: null
+
+team_members:
+  - name: Allan Kilpatrick
+  - name: Matt Cluness
+  - name: Michael Keightley
+  - name: Roderick Sneddon
+  - name: Ignas Kancleris
+
+people_of_interest: []

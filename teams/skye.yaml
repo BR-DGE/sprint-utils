@@ -1,0 +1,22 @@
+name: Skye
+jira_key: SKYE
+points_per_epic: 9
+manager: Simon Reid
+point_capacity: 0.8
+load_factor: 0.9
+engineering_split: 0.3
+absences_canvas: "#skye-canvas"
+capacity_canvas: Skye Sprint Canvas
+support_canvas: null
+
+team_members:
+  - name: Aaron Savage
+  - name: James Coburn
+  - name: Mikolaj Olejnik
+  - name: Paul Wilson
+  - name: Simon Gross
+  - name: Urszula Drzazga
+
+people_of_interest:
+  - name: David Agbowu
+  - name: Priya Nimani

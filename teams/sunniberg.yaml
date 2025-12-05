@@ -1,0 +1,28 @@
+name: Sunniberg
+jira_key: SUN
+points_per_epic: 9
+manager: Stuart Veloso Grant
+point_capacity: 0.8
+load_factor: 0.9
+engineering_split: 0.3
+absences_canvas: F09UUDRKSLV
+capacity_canvas: F09UUDSBWKX
+support_canvas: null
+
+team_members:
+  - name: Alex Lazellari
+  - name: Billy Mcintosh
+    bamboo_name: William Mcintosh
+  - name: Chris Feetham
+    bamboo_name: Christopher Feetham
+  - name: Kate Kladova
+    bamboo_name: Ekaterina Kladova
+  - name: Mack Millar
+  - name: Gary Clark
+  - name: Marcin Juszczyk
+  - name: Craig Banach
+    start_date: "2025-11-24"
+
+people_of_interest:
+  - name: Stuart Veloso Grant
+  - name: Alan Sambells
