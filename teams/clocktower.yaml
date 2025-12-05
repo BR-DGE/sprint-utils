@@ -1,0 +1,26 @@
+name: Clocktower
+jira_key: CLOCK
+points_per_epic: 9
+manager: Allan Jones
+point_capacity: 0.85
+load_factor: 0.8
+engineering_split: 0.3
+absences_canvas: F09PL2N8938
+capacity_canvas: F09P9N467HR
+support_canvas: F09SUFU1Z0V
+
+team_members:
+  - name: Marc Howarth
+  - name: Aidan Crooks
+  - name: Craig Findlay
+  - name: Andres Olmo
+  - name: Aleksandr Radevic
+  - name: Semilore Talabi
+    start_date: "2025-12-01"
+    start_pct: 0.5
+
+people_of_interest:
+  - name: Allan Jones
+  - name: David Richardson
+  - name: Connor Bates
+  - name: Priya Nimani

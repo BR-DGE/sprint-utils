@@ -2,6 +2,8 @@ from team import Team
 from teammember import TeamMember
 from dotenv import load_dotenv
 import os
+import yaml
+from pathlib import Path
 
 
 # Load variables from .env (if present). Does not override existing environment.
@@ -35,142 +37,37 @@ first_sprint_number = 73
 level_one_support_id = 'PGNTR7I'
 level_two_support_id = 'PJJERK8'
 
-# team definitions
-clocktower = Team(
-    name="Clocktower",
-    jira_key="CLOCK",
-    points_per_epic=9,
-    manager="Allan Jones",
-    team_members=[
-        {"name": "Marc Howarth"},
-        {"name": "Aidan Crooks"},
-        {"name": "Craig Findlay"},
-        {"name": "Andres Olmo"},
-        {"name": "Aleksandr Radevic"},
-        {"name": "Semilore Talabi", "start_date": "2025-12-01", "start_pct": 0.5},
-    ],
-    people_of_interest=["Allan Jones", "David Richardson", "Connor Bates", "Priya Nimani"],
-    point_capacity=0.85,
-    load_factor=0.8,
-    engineering_split=0.3,
-    absences_canvas="F09PL2N8938",
-    capacity_canvas="F09P9N467HR",
-    support_canvas="F09SUFU1Z0V"
-)
+# Load teams from YAML files
+def load_teams():
+    """Load team configurations from YAML files in the teams directory."""
+    teams = []
+    teams_dir = Path(__file__).parent / "teams"
+    
+    if not teams_dir.exists():
+        raise RuntimeError(f"Teams directory not found: {teams_dir}")
+    
+    # Load all .yaml files from the teams directory
+    for yaml_file in sorted(teams_dir.glob("*.yaml")):
+        with open(yaml_file, 'r') as f:
+            team_config = yaml.safe_load(f)
+        
+        # Create Team object from YAML config
+        team = Team(
+            name=team_config['name'],
+            jira_key=team_config['jira_key'],
+            points_per_epic=team_config['points_per_epic'],
+            manager=team_config['manager'],
+            team_members=team_config.get('team_members', []),
+            people_of_interest=team_config.get('people_of_interest', []),
+            point_capacity=team_config['point_capacity'],
+            load_factor=team_config['load_factor'],
+            engineering_split=team_config['engineering_split'],
+            absences_canvas=team_config.get('absences_canvas'),
+            capacity_canvas=team_config.get('capacity_canvas'),
+            support_canvas=team_config.get('support_canvas')
+        )
+        teams.append(team)
+    
+    return teams
 
-waterloo = Team(
-	name="Waterloo",
-    jira_key="WAT",
-    points_per_epic=9,
-	manager="Allan Jones",
-    team_members=[
-        {"name": "Kate Tindall", "start_date": "2025-11-24"},
-        {"name": "Christopher Logue", "pagerduty_name": "Chris Logue", "start_date": "2025-11-24"},
-        {"name": "Donal Stewart", "leave_date": "2025-12-19"},
-        {"name": "Yelyzaveta Hordynets", "pagerduty_name": "Liz Hordynets"},
-        {"name": "Andrew Coburn"},
-        {"name": "Andrew Trail"},
-        {"name": "Wesley Acheson", "start_date": "2025-12-08"},
-
-    ],
-    people_of_interest=["Allan Jones", "Will Gough", "Connor Bates", "Andy Paton"],
-    point_capacity=0.8,
-    load_factor=0.8,
-    engineering_split=0.3,
-    absences_canvas="F09QS9RGQCT",
-    capacity_canvas="F09QYMVDBHQ",
-    support_canvas="F09SRKC9059"
-)
-
-glenfinnan = Team(
-	name="Glenfinnan",
-    jira_key="GLEN",
-    points_per_epic=6,
-	manager="Kenny Scott",
-    team_members=[
-        {"name": "John Pooley"},
-        {"name": "Charlie Shale"},
-        {"name": "David Lynn"},
-        {"name": "Kevin Donnelly"},
-        {"name": "Wesley Acheson", "leave_date": "2025-12-07"},
-        {"name": "Kevin Kossipos"},
-        {"name": "Andrew Allan"},
-    ],
-    people_of_interest=["Kenny Scott, Alan Sambells", "Andy Paton", "Matt Smith"],
-    point_capacity=0.8,
-    load_factor=0.8,
-    engineering_split=0.3,
-    absences_canvas="F09UP3P0C2F",
-    capacity_canvas="F09UE2CAFGX",
-    support_canvas="F0A09QR5G7J"
-)
-
-skye = Team(
-	name="Skye",
-    jira_key="SKYE",
-    points_per_epic=9,
-	manager="Simon Reid",
-    team_members=[
-        {"name": "Aaron Savage"},
-        {"name": "James Coburn"},
-        {"name": "Mikolaj Olejnik"},
-        {"name": "Paul Wilson"},
-        {"name": "Simon Gross"},
-        {"name": "Urszula Drzazga"},
-    ],
-    people_of_interest=["David Agbowu", "Priya Nimani"],
-    point_capacity=0.8,
-    load_factor=0.9,
-    engineering_split=0.3,
-    absences_canvas="#skye-canvas",
-    capacity_canvas="Skye Sprint Canvas",
-    support_canvas=None
-)
-
-sunniberg = Team(
-	name="Sunniberg",
-    jira_key="SUN",
-    points_per_epic=9,
-	manager="Stuart Veloso Grant",
-    team_members=[
-        {"name": "Alex Lazellari"},
-        {"name": "William Mcintosh"},
-        {"name": "Christopher Feetham"},
-        {"name": "Ekaterina Kladova"},
-        {"name": "Mack Millar"},
-        {"name": "Gary Clark"},
-        {"name": "Marcin Juszczyk"},
-        {"name": "Craig Banach", "start_date": "2025-11-24"},
-    ],
-    people_of_interest=["Stuart Veloso Grant", "Alan Sambells"],
-    point_capacity=0.8,
-    load_factor=0.9,
-    engineering_split=0.3,
-    absences_canvas="F09UUDRKSLV",
-    capacity_canvas="F09UUDSBWKX",
-    support_canvas=None
-)
-
-
-platform = Team(
-	name="Platform",
-    jira_key="PL",
-    points_per_epic=9,
-	manager="Stuart Radley",
-    team_members=[
-        {"name": "Allan Kilpatrick"},
-        {"name": "Matt Cluness"},
-        {"name": "Michael Keightley"},
-        {"name": "Roderick Sneddon"},
-        {"name": "Ignas Kancleris"},
-    ],
-    people_of_interest=[],
-    point_capacity=0.8,
-    load_factor=0.9,
-    engineering_split=0.3,
-    absences_canvas="#platform-canvas",
-    capacity_canvas="Platform Sprint Canvas",
-    support_canvas=None
-)
-
-teams = [clocktower, waterloo, skye, glenfinnan, sunniberg, platform]
+teams = load_teams()
