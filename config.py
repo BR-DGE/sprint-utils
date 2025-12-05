@@ -47,7 +47,6 @@ clocktower = Team(
         {"name": "Craig Findlay"},
         {"name": "Andres Olmo"},
         {"name": "Aleksandr Radevic"},
-        {"name": "Mike Porter", "leave_date": "2025-11-28"},
         {"name": "Semilore Talabi", "start_date": "2025-12-01", "start_pct": 0.5},
     ],
     people_of_interest=["Allan Jones", "David Richardson", "Connor Bates", "Priya Nimani"],

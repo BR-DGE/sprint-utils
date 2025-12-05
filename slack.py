@@ -2,6 +2,7 @@ import requests
 from config import slack_api_key
 from presentation import SprintPresentation
 
+
 class Slack:
     """Slack API client for updating canvas documents with sprint data."""
     
@@ -50,13 +51,12 @@ class Slack:
             data: Sprint data dictionary with capacity and availability information
             team: Team object with canvas IDs for Slack integration
         """
-        from sprintplanner import build_calendar_data
         
         slack = Slack(api_key=slack_api_key)
         # capacity (includes calendar)
         if team.capacity_canvas:
             capacity_text = SprintPresentation.render_capacity_table(data)
-            calendar_text = SprintPresentation.render_calendar(*build_calendar_data(team, data))
+            calendar_text = SprintPresentation.render_calendar_view(data, team)
             text = capacity_text + "\n\nCalendar\n\n" + calendar_text
             slack.update_canvas(team.capacity_canvas, text)
         # absences

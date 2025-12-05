@@ -585,13 +585,13 @@ class SprintPresentation:
         """
         output = ""
         # Absences table
-        output += "Absences\n\n" + SprintPresentation.render_holidays(team, data) + "\n"
+        output += "Absences\n\n" + SprintPresentation.render_holidays(data, team) + "\n"
         # Add L1/L2 absence warnings
         warnings = SprintPresentation.render_l1_l2_absence_warnings(data) + "\n"
         if warnings and warnings.strip() != "No L1/L2 absence warnings.":
             output += warnings + "\n"
         # POI Absences table
-        output += "POI Absences\n\n" + SprintPresentation.render_manager_and_poi_holidays(team, data) + "\n"
+        output += "POI Absences\n\n" + SprintPresentation.render_manager_and_poi_holidays(data, team) + "\n"
         # Bank Holidays table
         output += "Bank Holidays\n\n" + SprintPresentation.render_next_12_months_bank_holidays() + "\n"
         return output
@@ -621,12 +621,12 @@ class SprintPresentation:
 
 
     @staticmethod
-    def render_holidays(team, data, key='holidays'):
+    def render_holidays(data, team, key='holidays'):
         """Render holiday/absence table.
         
         Args:
-            team: Team object
             data: Sprint data dictionary
+            team: Team object
             key: 'holidays' or 'poi_manager_holidays'
             
         Returns:
@@ -686,17 +686,17 @@ class SprintPresentation:
 
 
     @staticmethod
-    def render_manager_and_poi_holidays(team, data):
+    def render_manager_and_poi_holidays(data, team):
         """Render holidays for manager and people of interest.
         
         Args:
-            team: Team object
             data: Sprint data dictionary
+            team: Team object
             
         Returns:
             Formatted POI holiday table string
         """
-        return SprintPresentation.render_holidays(team, data, key='poi_manager_holidays')
+        return SprintPresentation.render_holidays(data, team, key='poi_manager_holidays')
 
     @staticmethod
     def render_next_12_months_bank_holidays():
@@ -740,6 +740,92 @@ class SprintPresentation:
         if not rows:
             return "No bank holidays found in next 12 months\n"
         return SprintPresentation.build_aligned_table(rows, headers=["Date", "Name", "Regions"])
+
+
+    @staticmethod
+    def render_calendar_view(data, team):
+        """Build and render calendar showing team and POI availability.
+        
+        Args:
+            data: Sprint data containing holiday information
+            team: Team object with member and POI details
+            
+        Returns:
+            Formatted calendar table string
+        """
+        from datetime import datetime, timedelta
+        
+        today = datetime.now().date()
+        end_date = today + timedelta(days=13)  # 2 weeks
+        
+        # Collect all team members and POIs (remove duplicates)
+        team_members = [m.name for m in team.team_members]
+        pois = team.people_of_interest + [team.manager]
+        all_people = list(dict.fromkeys(team_members + pois))  # Preserves order, removes duplicates
+        
+        # Build absence map from sprint data
+        absence_map = {}
+        for person in all_people:
+            absence_map[person] = set()
+        
+        # Build L1/L2 maps (map PagerDuty names to actual names)
+        pd_to_name = {}
+        for m in team.team_members:
+            pd_name = getattr(m, "pagerduty_name", m.name)
+            pd_to_name[pd_name] = m.name
+        
+        l1_map = {}
+        l2_map = {}
+        for person in all_people:
+            l1_map[person] = set()
+            l2_map[person] = set()
+        
+        for sprint in data['sprints']:
+            # Process team member holidays
+            for row in sprint.get('holidays', []):
+                name = row[0]
+                if name in all_people:
+                    absences = SprintPresentation.safe_eval_absences(row[2]) if len(row) > 2 else []
+                    for a in absences:
+                        start = a[0] if isinstance(a[0], str) else a[0].strftime('%Y-%m-%d')
+                        end = a[1] if isinstance(a[1], str) else a[1].strftime('%Y-%m-%d')
+                        start_dt = datetime.strptime(start, '%Y-%m-%d').date()
+                        end_dt = datetime.strptime(end, '%Y-%m-%d').date()
+                        for n in range((end_dt - start_dt).days + 1):
+                            absence_map[name].add(start_dt + timedelta(days=n))
+            
+            # Process POI/manager holidays
+            for row in sprint.get('poi_manager_holidays', []):
+                name = row[0]
+                if name in all_people:
+                    absences = SprintPresentation.safe_eval_absences(row[2]) if len(row) > 2 else []
+                    for a in absences:
+                        start = a[0] if isinstance(a[0], str) else a[0].strftime('%Y-%m-%d')
+                        end = a[1] if isinstance(a[1], str) else a[1].strftime('%Y-%m-%d')
+                        start_dt = datetime.strptime(start, '%Y-%m-%d').date()
+                        end_dt = datetime.strptime(end, '%Y-%m-%d').date()
+                        for n in range((end_dt - start_dt).days + 1):
+                            absence_map[name].add(start_dt + timedelta(days=n))
+            
+            # Process L1 assignments
+            for pd_name, dates in sprint.get('l1', {}).items():
+                actual_name = pd_to_name.get(pd_name, pd_name)
+                if actual_name in all_people:
+                    for date_str in dates:
+                        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date() if isinstance(date_str, str) else date_str
+                        if today <= date_obj <= end_date:
+                            l1_map[actual_name].add(date_obj)
+            
+            # Process L2 assignments
+            for pd_name, dates in sprint.get('l2', {}).items():
+                actual_name = pd_to_name.get(pd_name, pd_name)
+                if actual_name in all_people:
+                    for date_str in dates:
+                        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date() if isinstance(date_str, str) else date_str
+                        if today <= date_obj <= end_date:
+                            l2_map[actual_name].add(date_obj)
+        
+        return SprintPresentation.render_calendar(all_people, absence_map, l1_map, l2_map, today, end_date)
 
 
     @staticmethod

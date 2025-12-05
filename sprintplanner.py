@@ -531,89 +531,6 @@ def filter_absences_by_sprint(absence_dict, sprint_start, sprint_end):
 
 
 # Data builder for xmas rota CSV
-def build_calendar_data(team, data):
-    """Build calendar data showing team and POI availability for next 2 weeks.
-    
-    Args:
-        team: Team object with member and POI details
-        data: Sprint data containing holiday information
-        
-    Returns:
-        Tuple of (all_people, absence_map, l1_map, l2_map, today, end_date) for calendar rendering
-    """
-    today = datetime.now().date()
-    end_date = today + timedelta(days=13)  # 2 weeks
-    
-    # Collect all team members and POIs (remove duplicates)
-    team_members = [m.name for m in team.team_members]
-    pois = team.people_of_interest + [team.manager]
-    all_people = list(dict.fromkeys(team_members + pois))  # Preserves order, removes duplicates
-    
-    # Build absence map from sprint data
-    absence_map = {}
-    for person in all_people:
-        absence_map[person] = set()
-    
-    # Build L1/L2 maps (map PagerDuty names to actual names)
-    pd_to_name = {}
-    for m in team.team_members:
-        pd_name = getattr(m, "pagerduty_name", m.name)
-        pd_to_name[pd_name] = m.name
-    
-    l1_map = {}
-    l2_map = {}
-    for person in all_people:
-        l1_map[person] = set()
-        l2_map[person] = set()
-    
-    for sprint in data['sprints']:
-        # Process team member holidays
-        for row in sprint.get('holidays', []):
-            name = row[0]
-            if name in all_people:
-                absences = SprintPresentation.safe_eval_absences(row[2]) if len(row) > 2 else []
-                for a in absences:
-                    start = a[0] if isinstance(a[0], str) else a[0].strftime('%Y-%m-%d')
-                    end = a[1] if isinstance(a[1], str) else a[1].strftime('%Y-%m-%d')
-                    start_dt = datetime.strptime(start, '%Y-%m-%d').date()
-                    end_dt = datetime.strptime(end, '%Y-%m-%d').date()
-                    for n in range((end_dt - start_dt).days + 1):
-                        absence_map[name].add(start_dt + timedelta(days=n))
-        
-        # Process POI/manager holidays
-        for row in sprint.get('poi_manager_holidays', []):
-            name = row[0]
-            if name in all_people:
-                absences = SprintPresentation.safe_eval_absences(row[2]) if len(row) > 2 else []
-                for a in absences:
-                    start = a[0] if isinstance(a[0], str) else a[0].strftime('%Y-%m-%d')
-                    end = a[1] if isinstance(a[1], str) else a[1].strftime('%Y-%m-%d')
-                    start_dt = datetime.strptime(start, '%Y-%m-%d').date()
-                    end_dt = datetime.strptime(end, '%Y-%m-%d').date()
-                    for n in range((end_dt - start_dt).days + 1):
-                        absence_map[name].add(start_dt + timedelta(days=n))
-        
-        # Process L1 assignments
-        for pd_name, dates in sprint.get('l1', {}).items():
-            actual_name = pd_to_name.get(pd_name, pd_name)
-            if actual_name in all_people:
-                for date_str in dates:
-                    date_obj = datetime.strptime(date_str, '%Y-%m-%d').date() if isinstance(date_str, str) else date_str
-                    if today <= date_obj <= end_date:
-                        l1_map[actual_name].add(date_obj)
-        
-        # Process L2 assignments
-        for pd_name, dates in sprint.get('l2', {}).items():
-            actual_name = pd_to_name.get(pd_name, pd_name)
-            if actual_name in all_people:
-                for date_str in dates:
-                    date_obj = datetime.strptime(date_str, '%Y-%m-%d').date() if isinstance(date_str, str) else date_str
-                    if today <= date_obj <= end_date:
-                        l2_map[actual_name].add(date_obj)
-    
-    return all_people, absence_map, l1_map, l2_map, today, end_date
-
-
 def build_xmas_rota_data():
     """Build Christmas rota data for Tech division employees.
     
@@ -680,62 +597,7 @@ def build_xmas_rota_data():
     return date_list, user_absence_map
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Sprint planner tool")
-    parser.add_argument("team_name", type=str, help="Team name")
-    parser.add_argument("-capacity", "-c", action="store_true", help="Show capacity summary table")
-    parser.add_argument("-absences", "-a", action="store_true", help="Show upcoming absences grouped by person")
-    parser.add_argument("-l1", action="store_true", help="Show upcoming L1 assignments")
-    parser.add_argument("-l2", action="store_true", help="Show upcoming L2 assignments")
-    parser.add_argument("-interest", "-i", action="store_true", help="Show upcoming holidays for people of interest and the manager")
-    parser.add_argument("-full", "-f", action="store_true", help="Show full output")
-    parser.add_argument("-purge", "-p", action="store_true", help="Delete all cached API data before running")
-    parser.add_argument("-slack", "-s", action="store_true", help="Send data to Slack")
-    parser.add_argument("-xmas", "-x", action="store_true", help="Show Christmas rota CSV output")
-    parser.add_argument("-bankhols", "-b", action="store_true", help="Show next 12 months bank holidays")
-    parser.add_argument("-warning", "-w", action="store_true", help="Show warning if a person is absent during L1 or L2 shift")
-    parser.add_argument("-debug", "-d", action="store_true", help="Dump employee tree, holidays, and pagerduty shifts for debugging")
-    parser.add_argument("-calendar", "-k", action="store_true", help="Show calendar of team and POI availability")
-
-    args = parser.parse_args()
-
-    if args.purge:
-        cache_dir = "./.api_cache"
-        if os.path.exists(cache_dir):
-            for fname in os.listdir(cache_dir):
-                fpath = os.path.join(cache_dir, fname)
-                try:
-                    os.remove(fpath)
-                except Exception as e:
-                    print(f"Failed to delete {fpath}: {e}")
-            print("API cache purged.")
-        else:
-            print("No API cache directory found.")
-        sys.exit(1)
-
-    team_name = args.team_name.lower()
-    team = next((t for t in teams if t.name.lower() == team_name), None)
-    if not team:
-        print(f"Team '{team_name}' not found. Available teams: {[t.name for t in teams]}")
-        sys.exit(1)
-    data = get_sprint_data(team)
-    action = False
-    output_map = {
-        'capacity': lambda: SprintPresentation.render_capacity_table(data),
-        'absences': lambda: SprintPresentation.render_holidays(team, data),
-        'l1': lambda: SprintPresentation.render_l1_assignments(data),
-        'l2': lambda: SprintPresentation.render_l2_assignments(data),
-        'interest': lambda: SprintPresentation.render_manager_and_poi_holidays(team, data),
-        'slack': lambda: Slack.send_sprint_data_to_slack(data, team),
-        'full': lambda: SprintPresentation.render_sprint_data(data),
-        'xmas': lambda: SprintPresentation.render_xmas_rota_csv(*build_xmas_rota_data()),
-        'bankhols': lambda: SprintPresentation.render_next_12_months_bank_holidays(),
-        'warning': lambda: SprintPresentation.render_l1_l2_absence_warnings(data),
-        'debug': lambda: debug_dump(team, data),
-        'calendar': lambda: SprintPresentation.render_calendar(*build_calendar_data(team, data)),
-    }
-
-    def debug_dump(team, data):
+def debug_dump(team, data):
         print("==== RAW EMPLOYEE DIRECTORY API RESPONSE ====")
         # Dump raw employee directory XML
         cache_dir = "./.api_cache"
@@ -802,6 +664,63 @@ if __name__ == "__main__":
         else:
             print("No cached L2 PagerDuty shifts found.")
         return None
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sprint planner tool")
+    parser.add_argument("team_name", type=str, help="Team name")
+    parser.add_argument("-capacity", "-c", action="store_true", help="Show capacity summary table")
+    parser.add_argument("-absences", "-a", action="store_true", help="Show upcoming absences grouped by person")
+    parser.add_argument("-l1", action="store_true", help="Show upcoming L1 assignments")
+    parser.add_argument("-l2", action="store_true", help="Show upcoming L2 assignments")
+    parser.add_argument("-interest", "-i", action="store_true", help="Show upcoming holidays for people of interest and the manager")
+    parser.add_argument("-full", "-f", action="store_true", help="Show full output")
+    parser.add_argument("-purge", "-p", action="store_true", help="Delete all cached API data before running")
+    parser.add_argument("-slack", "-s", action="store_true", help="Send data to Slack")
+    parser.add_argument("-xmas", "-x", action="store_true", help="Show Christmas rota CSV output")
+    parser.add_argument("-bankhols", "-b", action="store_true", help="Show next 12 months bank holidays")
+    parser.add_argument("-warning", "-w", action="store_true", help="Show warning if a person is absent during L1 or L2 shift")
+    parser.add_argument("-debug", "-d", action="store_true", help="Dump employee tree, holidays, and pagerduty shifts for debugging")
+    parser.add_argument("-calendar", "-k", action="store_true", help="Show calendar of team and POI availability")
+
+    args = parser.parse_args()
+
+    if args.purge:
+        cache_dir = "./.api_cache"
+        if os.path.exists(cache_dir):
+            for fname in os.listdir(cache_dir):
+                fpath = os.path.join(cache_dir, fname)
+                try:
+                    os.remove(fpath)
+                except Exception as e:
+                    print(f"Failed to delete {fpath}: {e}")
+            print("API cache purged.")
+        else:
+            print("No API cache directory found.")
+        sys.exit(1)
+
+    team_name = args.team_name.lower()
+    team = next((t for t in teams if t.name.lower() == team_name), None)
+    if not team:
+        print(f"Team '{team_name}' not found. Available teams: {[t.name for t in teams]}")
+        sys.exit(1)
+    data = get_sprint_data(team)
+    action = False
+    output_map = {
+        'capacity': lambda: SprintPresentation.render_capacity_table(data),
+        'absences': lambda: SprintPresentation.render_holidays(data, team),
+        'l1': lambda: SprintPresentation.render_l1_assignments(data),
+        'l2': lambda: SprintPresentation.render_l2_assignments(data),
+        'interest': lambda: SprintPresentation.render_manager_and_poi_holidays(data, team),
+        'slack': lambda: Slack.send_sprint_data_to_slack(data, team),
+        'full': lambda: SprintPresentation.render_sprint_data(data),
+        'xmas': lambda: SprintPresentation.render_xmas_rota_csv(*build_xmas_rota_data()),
+        'bankhols': lambda: SprintPresentation.render_next_12_months_bank_holidays(),
+        'warning': lambda: SprintPresentation.render_l1_l2_absence_warnings(data),
+        'debug': lambda: debug_dump(data, team),
+        'calendar': lambda: SprintPresentation.render_calendar_view(data, team),
+    }
+
     for arg, func in output_map.items():
         if getattr(args, arg, False):
             result = func()
